@@ -1,0 +1,467 @@
+[
+  {
+    "id": "INC-001",
+    "title": "Payment API DB Connection Timeout Spike",
+    "service": "Payment API",
+    "environment": "Production",
+    "error_message": "DB_CONNECTION_TIMEOUT",
+    "symptoms": "Payment API endpoints return HTTP 504. Database connection pool reaches 100% saturation within 5 minutes of high traffic.",
+    "recent_changes": "Database pool configuration update deployed 30 mins prior to incident.",
+    "logs_snippet": null,
+    "status": "RESOLVED",
+    "created_at": "2026-09-27T16:54:21.359718",
+    "resolved_at": "2026-09-27T16:54:21.359724",
+    "attempts": [
+      {
+        "action": "Restart service container",
+        "result": "FAILED",
+        "reason_or_why": "Hung connection sockets remained open in TCP CLOSE_WAIT state"
+      },
+      {
+        "action": "Increase request timeout limit to 30s",
+        "result": "FAILED",
+        "reason_or_why": "Worsened database pool exhaustion as connections were held open longer"
+      }
+    ],
+    "successful_action": "Roll back database pool configuration update v2.4.1",
+    "root_cause": "Incorrect max_connections parameter in database configuration update v2.4.1 causing connection pool deadlocks",
+    "lessons_learned": [
+      "Restarting service does NOT release hanging TCP connection sockets during pool deadlocks",
+      "Increasing request timeouts exacerbates connection pool saturation",
+      "When DB timeouts follow a config update, rollback configuration before attempting application workarounds"
+    ],
+    "analysis": null
+  },
+  {
+    "id": "INC-002",
+    "title": "Payment API Database Timeout Spike",
+    "service": "Payment API",
+    "environment": "Production",
+    "error_message": "DB_CONNECTION_TIMEOUT",
+    "symptoms": "API requests timing out after 30 seconds. Connection pool exhaustion observed.",
+    "recent_changes": "New connection-pool library version 3.1.0 deployed 20 minutes ago.",
+    "logs_snippet": "FATAL: connection pool overflow (500/500 active pool connections)",
+    "status": "RESOLVED",
+    "created_at": "2026-09-27T16:54:23.774478",
+    "resolved_at": "2026-09-27T16:54:23.811045",
+    "attempts": [
+      {
+        "action": "Increase pool acquire timeout to 45s",
+        "result": "FAILED",
+        "reason_or_why": "Connections remained blocked; pool size was mismatched with database server limit"
+      }
+    ],
+    "successful_action": "Configure connection pool max_size=50 in library 3.1.0 configuration",
+    "root_cause": "Default pool size in connection-pool v3.1.0 library defaulted to 500 while Postgres server max_connections was set to 100",
+    "lessons_learned": [
+      "Upgrade of connection-pool v3.1.0 resets default max pool limit to 500",
+      "Always align application connection pool limits with DB server limits prior to deployment"
+    ],
+    "analysis": {
+      "summary": "Compared Payment API incident with historical Hindsight records.",
+      "recommendation_type": "CAUTION",
+      "recommendation_summary": "CAUTION: Symptoms match prior incident, but recent dependency update alters context!",
+      "detailed_recommendation": "Incident resembles historical incident (INC-001), BUT a critical contextual difference exists: New connection-pool library version 3.1.0 deployed 20 minutes ago.. DO NOT blindly repeat the previous fix (config rollback). Investigate connection-pool configuration and pooling parameters first.",
+      "historical_matches": [
+        {
+          "incident_id": "INC-001",
+          "title": "Historical Failure: Payment API Timeout",
+          "service": "Payment API",
+          "similarity_score": 0.92,
+          "similarities": [
+            "Affected Service: Payment API",
+            "Observed Error: DB_CONNECTION_TIMEOUT",
+            "Symptoms: Request timeout & hanging connections"
+          ],
+          "differences": [
+            "Context Change: New deployment contains 'New connection-pool library version 3.1.0 deployed 20 minutes ago.', whereas prior incident was caused by database config update."
+          ],
+          "failed_attempts": [
+            "Restart service (FAILED in INC-001 - hung connections were not cleared)",
+            "Increase request timeout (FAILED in INC-001 - caused connection pool exhaustion)"
+          ],
+          "successful_fix": "Roll back database pool configuration update v2.4.1",
+          "root_cause": "Incorrect max_connections parameter in database configuration update v2.4.1 causing connection pool deadlocks",
+          "lesson_learned": "Restarting service & increasing request timeouts fail under connection pool pressure."
+        }
+      ],
+      "key_similarities": [
+        "Affected Service: Payment API",
+        "Observed Error: DB_CONNECTION_TIMEOUT",
+        "Symptoms: Request timeout & hanging connections"
+      ],
+      "key_differences": [
+        "Context Change: New deployment contains 'New connection-pool library version 3.1.0 deployed 20 minutes ago.', whereas prior incident was caused by database config update."
+      ],
+      "actions_to_avoid": [
+        "DO NOT restart service (previously failed to release hung connections)",
+        "DO NOT increase request timeout limit (previously worsened pool exhaustion)"
+      ],
+      "suggested_investigation_steps": [
+        "Inspect connection pool settings introduced in recent deployment: 'New connection-pool library version 3.1.0 deployed 20 minutes ago.'",
+        "Verify active connection pool leaks and thread state dumps",
+        "Compare connection acquire timeouts against upstream database limits"
+      ],
+      "confidence_level": "High (Context Comparison Active)",
+      "reasoning_evidence": [
+        "Retrieved historical incident INC-001 from Hindsight memory bank.",
+        "Detected 2 previously FAILED attempts in memory (restart service, increase timeout).",
+        "Flagged contextual difference in recent changes: New connection-pool library version 3.1.0 deployed 20 minutes ago.."
+      ]
+    }
+  },
+  {
+    "id": "INC-003",
+    "title": "Payment API Database Timeout Spike",
+    "service": "Payment API",
+    "environment": "Production",
+    "error_message": "DB_CONNECTION_TIMEOUT",
+    "symptoms": "Payment API requests timing out after 30 seconds. Connection pool exhaustion observed in production logs.",
+    "recent_changes": "New connection-pool library version 3.1.0 deployed 20 minutes ago.",
+    "logs_snippet": "FATAL: connection pool overflow (500/500 active connections in pool)",
+    "status": "RESOLVED",
+    "created_at": "2026-09-27T17:02:04.367276",
+    "resolved_at": "2026-09-27T17:05:38.850407",
+    "attempts": [],
+    "successful_action": "Configure connection pool max_size=50 in library 3.1.0 configuration",
+    "root_cause": "Connection pool library default size exceeded Postgres limit",
+    "lessons_learned": [],
+    "analysis": {
+      "summary": "Compared Payment API incident with historical Hindsight records.",
+      "recommendation_type": "CAUTION",
+      "recommendation_summary": "CAUTION: Symptoms match prior incident, but recent dependency update alters context!",
+      "detailed_recommendation": "Incident resembles historical incident (INC-002), BUT a critical contextual difference exists: New connection-pool library version 3.1.0 deployed 20 minutes ago.. DO NOT blindly repeat the previous fix (config rollback). Investigate connection-pool configuration and pooling parameters first.",
+      "historical_matches": [
+        {
+          "incident_id": "INC-002",
+          "title": "Historical Failure: Payment API Timeout",
+          "service": "Payment API",
+          "similarity_score": 0.92,
+          "similarities": [
+            "Affected Service: Payment API",
+            "Observed Error: DB_CONNECTION_TIMEOUT",
+            "Symptoms: Request timeout & hanging connections"
+          ],
+          "differences": [
+            "Context Change: New deployment contains 'New connection-pool library version 3.1.0 deployed 20 minutes ago.', whereas prior incident was caused by database config update."
+          ],
+          "failed_attempts": [
+            "Restart service (FAILED in INC-001 - hung connections were not cleared)",
+            "Increase request timeout (FAILED in INC-001 - caused connection pool exhaustion)"
+          ],
+          "successful_fix": "Configure connection pool max_size=50 in library 3.1.0 configuration",
+          "root_cause": "Default pool size in connection-pool v3.1.0 library defaulted to 500 while Postgres server max_connections was set to 100",
+          "lesson_learned": "Restarting service & increasing request timeouts fail under connection pool pressure."
+        }
+      ],
+      "key_similarities": [
+        "Affected Service: Payment API",
+        "Observed Error: DB_CONNECTION_TIMEOUT",
+        "Symptoms: Request timeout & hanging connections"
+      ],
+      "key_differences": [
+        "Context Change: New deployment contains 'New connection-pool library version 3.1.0 deployed 20 minutes ago.', whereas prior incident was caused by database config update."
+      ],
+      "actions_to_avoid": [
+        "DO NOT restart service (previously failed to release hung connections)",
+        "DO NOT increase request timeout limit (previously worsened pool exhaustion)"
+      ],
+      "suggested_investigation_steps": [
+        "Inspect connection pool settings introduced in recent deployment: 'New connection-pool library version 3.1.0 deployed 20 minutes ago.'",
+        "Verify active connection pool leaks and thread state dumps",
+        "Compare connection acquire timeouts against upstream database limits"
+      ],
+      "confidence_level": "High (Context Comparison Active)",
+      "reasoning_evidence": [
+        "Retrieved historical incident INC-002 from Hindsight memory bank.",
+        "Detected 2 previously FAILED attempts in memory (restart service, increase timeout).",
+        "Flagged contextual difference in recent changes: New connection-pool library version 3.1.0 deployed 20 minutes ago.."
+      ]
+    }
+  },
+  {
+    "id": "INC-004",
+    "title": "Payment API Database Timeout Spike",
+    "service": "Payment API",
+    "environment": "Production",
+    "error_message": "DB_CONNECTION_TIMEOUT",
+    "symptoms": "Payment API requests timing out after 30 seconds. Connection pool exhaustion observed in production logs.",
+    "recent_changes": "New connection-pool library version 3.1.0 deployed 20 minutes ago.",
+    "logs_snippet": "FATAL: connection pool overflow (500/500 active connections in pool)",
+    "status": "INVESTIGATING",
+    "created_at": "2026-09-27T17:11:29.957090",
+    "resolved_at": null,
+    "attempts": [],
+    "successful_action": null,
+    "root_cause": null,
+    "lessons_learned": [],
+    "analysis": {
+      "summary": "Compared Payment API incident with historical Hindsight records.",
+      "recommendation_type": "CAUTION",
+      "recommendation_summary": "CAUTION: Symptoms match prior incident, but recent dependency update alters context!",
+      "detailed_recommendation": "Incident resembles historical incident (INC-002), BUT a critical contextual difference exists: New connection-pool library version 3.1.0 deployed 20 minutes ago.. DO NOT blindly repeat the previous fix (config rollback). Investigate connection-pool configuration and pooling parameters first.",
+      "historical_matches": [
+        {
+          "incident_id": "INC-002",
+          "title": "Historical Failure: Payment API Timeout",
+          "service": "Payment API",
+          "similarity_score": 0.92,
+          "similarities": [
+            "Affected Service: Payment API",
+            "Observed Error: DB_CONNECTION_TIMEOUT",
+            "Symptoms: Request timeout & hanging connections"
+          ],
+          "differences": [
+            "Context Change: New deployment contains 'New connection-pool library version 3.1.0 deployed 20 minutes ago.', whereas prior incident was caused by database config update."
+          ],
+          "failed_attempts": [
+            "Restart service (FAILED in INC-001 - hung connections were not cleared)",
+            "Increase request timeout (FAILED in INC-001 - caused connection pool exhaustion)"
+          ],
+          "successful_fix": "Configure connection pool max_size=50 in library 3.1.0 configuration",
+          "root_cause": "Default pool size in connection-pool v3.1.0 library defaulted to 500 while Postgres server max_connections was set to 100",
+          "lesson_learned": "Restarting service & increasing request timeouts fail under connection pool pressure."
+        }
+      ],
+      "key_similarities": [
+        "Affected Service: Payment API",
+        "Observed Error: DB_CONNECTION_TIMEOUT",
+        "Symptoms: Request timeout & hanging connections"
+      ],
+      "key_differences": [
+        "Context Change: New deployment contains 'New connection-pool library version 3.1.0 deployed 20 minutes ago.', whereas prior incident was caused by database config update."
+      ],
+      "actions_to_avoid": [
+        "DO NOT restart service (previously failed to release hung connections)",
+        "DO NOT increase request timeout limit (previously worsened pool exhaustion)"
+      ],
+      "suggested_investigation_steps": [
+        "Inspect connection pool settings introduced in recent deployment: 'New connection-pool library version 3.1.0 deployed 20 minutes ago.'",
+        "Verify active connection pool leaks and thread state dumps",
+        "Compare connection acquire timeouts against upstream database limits"
+      ],
+      "confidence_level": "High (Context Comparison Active)",
+      "reasoning_evidence": [
+        "Retrieved historical incident INC-002 from Hindsight memory bank.",
+        "Detected 2 previously FAILED attempts in memory (restart service, increase timeout).",
+        "Flagged contextual difference in recent changes: New connection-pool library version 3.1.0 deployed 20 minutes ago.."
+      ]
+    }
+  },
+  {
+    "id": "INC-005",
+    "title": "[PRODUCTION AUDIT] Ledger timeout baseline",
+    "service": "Audit Ledger Service",
+    "environment": "Production",
+    "error_message": "LEDGER_WRITE_TIMEOUT",
+    "symptoms": "Ledger writes time out while the queue backs up and database connections saturate.",
+    "recent_changes": "Routine traffic increase; no deployment or configuration change reported.",
+    "logs_snippet": "write latency p99 above 8s; active DB connections at limit",
+    "status": "RESOLVED",
+    "created_at": "2026-09-27T17:38:05.818513",
+    "resolved_at": "2026-09-27T17:38:09.963630",
+    "attempts": [
+      {
+        "action": "Restart worker",
+        "result": "FAILED",
+        "reason_or_why": "Queue and connection saturation persisted."
+      }
+    ],
+    "successful_action": "Restore ledger writer concurrency to 24 workers",
+    "root_cause": "Worker concurrency exceeded the database connection budget, exhausting available connections.",
+    "lessons_learned": [
+      "Keep ledger writer concurrency within the database connection budget.",
+      "Restarting workers does not resolve a concurrency limit mismatch."
+    ],
+    "analysis": {
+      "summary": "Compared Audit Ledger Service incident with historical Hindsight records.",
+      "recommendation_type": "REUSE",
+      "recommendation_summary": "High confidence match with historical resolution.",
+      "detailed_recommendation": "Apply previous successful fix: Roll back database configuration.",
+      "historical_matches": [
+        {
+          "incident_id": "INC-TEST-001",
+          "title": "Historical Failure: Audit Ledger Service Timeout",
+          "service": "Audit Ledger Service",
+          "similarity_score": 0.92,
+          "similarities": [
+            "Affected Service: Audit Ledger Service",
+            "Observed Error: LEDGER_WRITE_TIMEOUT",
+            "Symptoms: Request timeout & hanging connections"
+          ],
+          "differences": [
+            "No major contextual deviation detected from historical record."
+          ],
+          "failed_attempts": [
+            "Restart service (FAILED in INC-001 - hung connections were not cleared)",
+            "Increase request timeout (FAILED in INC-001 - caused connection pool exhaustion)"
+          ],
+          "successful_fix": "Roll back database configuration",
+          "root_cause": "Incorrect database connection configuration",
+          "lesson_learned": "Restarting service & increasing request timeouts fail under connection pool pressure."
+        }
+      ],
+      "key_similarities": [
+        "Affected Service: Audit Ledger Service",
+        "Observed Error: LEDGER_WRITE_TIMEOUT",
+        "Symptoms: Request timeout & hanging connections"
+      ],
+      "key_differences": [
+        "No major contextual deviation detected from historical record."
+      ],
+      "actions_to_avoid": [
+        "DO NOT restart service (previously failed to release hung connections)",
+        "DO NOT increase request timeout limit (previously worsened pool exhaustion)"
+      ],
+      "suggested_investigation_steps": [
+        "Inspect connection pool settings introduced in recent deployment: 'Routine traffic increase; no deployment or configuration change reported.'",
+        "Verify active connection pool leaks and thread state dumps",
+        "Compare connection acquire timeouts against upstream database limits"
+      ],
+      "confidence_level": "High (Context Comparison Active)",
+      "reasoning_evidence": [
+        "Retrieved historical incident INC-TEST-001 from Hindsight memory bank.",
+        "Detected 2 previously FAILED attempts in memory (restart service, increase timeout).",
+        "Flagged contextual difference in recent changes: Routine traffic increase; no deployment or configuration change reported.."
+      ]
+    }
+  },
+  {
+    "id": "INC-006",
+    "title": "[PRODUCTION AUDIT] Ledger timeout recurrence",
+    "service": "Audit Ledger Service",
+    "environment": "Production",
+    "error_message": "LEDGER_WRITE_TIMEOUT",
+    "symptoms": "Ledger writes time out while the queue backs up and database connections saturate.",
+    "recent_changes": "No recent deployment; same workload and database topology.",
+    "logs_snippet": "write latency p99 above 8s; active DB connections at limit",
+    "status": "INVESTIGATING",
+    "created_at": "2026-09-27T17:38:14.093600",
+    "resolved_at": null,
+    "attempts": [],
+    "successful_action": null,
+    "root_cause": null,
+    "lessons_learned": [],
+    "analysis": {
+      "summary": "Compared Audit Ledger Service incident with historical Hindsight records.",
+      "recommendation_type": "REUSE",
+      "recommendation_summary": "High confidence match with historical resolution.",
+      "detailed_recommendation": "Apply previous successful fix: Restore ledger writer concurrency to 24 workers.",
+      "historical_matches": [
+        {
+          "incident_id": "INC-005",
+          "title": "Historical Failure: Audit Ledger Service Timeout",
+          "service": "Audit Ledger Service",
+          "similarity_score": 0.92,
+          "similarities": [
+            "Affected Service: Audit Ledger Service",
+            "Observed Error: LEDGER_WRITE_TIMEOUT",
+            "Symptoms: Request timeout & hanging connections"
+          ],
+          "differences": [
+            "No major contextual deviation detected from historical record."
+          ],
+          "failed_attempts": [
+            "Restart service (FAILED in INC-001 - hung connections were not cleared)",
+            "Increase request timeout (FAILED in INC-001 - caused connection pool exhaustion)"
+          ],
+          "successful_fix": "Restore ledger writer concurrency to 24 workers",
+          "root_cause": "Worker concurrency exceeded the database connection budget, exhausting available connections.",
+          "lesson_learned": "Restarting service & increasing request timeouts fail under connection pool pressure."
+        }
+      ],
+      "key_similarities": [
+        "Affected Service: Audit Ledger Service",
+        "Observed Error: LEDGER_WRITE_TIMEOUT",
+        "Symptoms: Request timeout & hanging connections"
+      ],
+      "key_differences": [
+        "No major contextual deviation detected from historical record."
+      ],
+      "actions_to_avoid": [
+        "DO NOT restart service (previously failed to release hung connections)",
+        "DO NOT increase request timeout limit (previously worsened pool exhaustion)"
+      ],
+      "suggested_investigation_steps": [
+        "Inspect connection pool settings introduced in recent deployment: 'No recent deployment; same workload and database topology.'",
+        "Verify active connection pool leaks and thread state dumps",
+        "Compare connection acquire timeouts against upstream database limits"
+      ],
+      "confidence_level": "High (Context Comparison Active)",
+      "reasoning_evidence": [
+        "Retrieved historical incident INC-005 from Hindsight memory bank.",
+        "Detected 2 previously FAILED attempts in memory (restart service, increase timeout).",
+        "Flagged contextual difference in recent changes: No recent deployment; same workload and database topology.."
+      ]
+    }
+  },
+  {
+    "id": "INC-007",
+    "title": "[PRODUCTION AUDIT] Ledger timeout after dependency change",
+    "service": "Audit Ledger Service",
+    "environment": "Production",
+    "error_message": "LEDGER_WRITE_TIMEOUT",
+    "symptoms": "Ledger writes time out while the queue backs up and database connections saturate.",
+    "recent_changes": "New ledger persistence dependency ledger-writer v2.0 deployed 12 minutes ago.",
+    "logs_snippet": "write latency p99 above 8s; active DB connections at limit",
+    "status": "INVESTIGATING",
+    "created_at": "2026-09-27T17:38:18.207980",
+    "resolved_at": null,
+    "attempts": [],
+    "successful_action": null,
+    "root_cause": null,
+    "lessons_learned": [],
+    "analysis": {
+      "summary": "Compared Audit Ledger Service incident with historical Hindsight records.",
+      "recommendation_type": "CAUTION",
+      "recommendation_summary": "CAUTION: Symptoms match prior incident, but recent dependency update alters context!",
+      "detailed_recommendation": "Incident resembles historical incident (INC-005), BUT a critical contextual difference exists: New ledger persistence dependency ledger-writer v2.0 deployed 12 minutes ago.. DO NOT blindly repeat the previous fix (config rollback). Investigate connection-pool configuration and pooling parameters first.",
+      "historical_matches": [
+        {
+          "incident_id": "INC-005",
+          "title": "Historical Failure: Audit Ledger Service Timeout",
+          "service": "Audit Ledger Service",
+          "similarity_score": 0.92,
+          "similarities": [
+            "Affected Service: Audit Ledger Service",
+            "Observed Error: LEDGER_WRITE_TIMEOUT",
+            "Symptoms: Request timeout & hanging connections"
+          ],
+          "differences": [
+            "Context Change: New deployment contains 'New ledger persistence dependency ledger-writer v2.0 deployed 12 minutes ago.', whereas prior incident was caused by database config update."
+          ],
+          "failed_attempts": [
+            "Restart service (FAILED in INC-001 - hung connections were not cleared)",
+            "Increase request timeout (FAILED in INC-001 - caused connection pool exhaustion)"
+          ],
+          "successful_fix": "Restore ledger writer concurrency to 24 workers",
+          "root_cause": "Worker concurrency exceeded the database connection budget, exhausting available connections.",
+          "lesson_learned": "Restarting service & increasing request timeouts fail under connection pool pressure."
+        }
+      ],
+      "key_similarities": [
+        "Affected Service: Audit Ledger Service",
+        "Observed Error: LEDGER_WRITE_TIMEOUT",
+        "Symptoms: Request timeout & hanging connections"
+      ],
+      "key_differences": [
+        "Context Change: New deployment contains 'New ledger persistence dependency ledger-writer v2.0 deployed 12 minutes ago.', whereas prior incident was caused by database config update."
+      ],
+      "actions_to_avoid": [
+        "DO NOT restart service (previously failed to release hung connections)",
+        "DO NOT increase request timeout limit (previously worsened pool exhaustion)"
+      ],
+      "suggested_investigation_steps": [
+        "Inspect connection pool settings introduced in recent deployment: 'New ledger persistence dependency ledger-writer v2.0 deployed 12 minutes ago.'",
+        "Verify active connection pool leaks and thread state dumps",
+        "Compare connection acquire timeouts against upstream database limits"
+      ],
+      "confidence_level": "High (Context Comparison Active)",
+      "reasoning_evidence": [
+        "Retrieved historical incident INC-005 from Hindsight memory bank.",
+        "Detected 2 previously FAILED attempts in memory (restart service, increase timeout).",
+        "Flagged contextual difference in recent changes: New ledger persistence dependency ledger-writer v2.0 deployed 12 minutes ago.."
+      ]
+    }
+  }
+]

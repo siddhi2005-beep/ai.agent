@@ -1,0 +1,88 @@
+[
+  {
+    "id": "INC-TEST-001",
+    "content": "\n    Incident INC-TEST-001: Payment API Database Connection Timeout\n    Service: Payment API\n    Error: DB_CONNECTION_TIMEOUT\n    Recent Change: Database configuration update\n    \n    Failed Attempts:\n    - Restart service: FAILED (Did not release hanging connections)\n    - Increase request timeout: FAILED (Requests continued hanging until connection pool exhausted)\n    \n    Successful Fix:\n    - Roll back database configuration: SUCCESSFUL\n    \n    Root Cause: Incorrect database connection pool configuration deployed in v2.4.1.\n    Lesson Learned: For DB connection timeout spikes following config deployment, restarting the service and increasing request timeout do NOT work. Rollback config immediately.\n    ",
+    "context": "Historical Production Incident #001",
+    "metadata": {
+      "incident_id": "INC-TEST-001",
+      "service": "Payment API",
+      "error_message": "DB_CONNECTION_TIMEOUT",
+      "root_cause": "Incorrect database connection configuration",
+      "successful_fix": "Roll back database configuration"
+    },
+    "tags": [
+      "payment-api",
+      "db-timeout",
+      "config-rollback"
+    ],
+    "timestamp": "2026-09-27T16:49:28.108299"
+  },
+  {
+    "id": "INC-001",
+    "content": "\nIncident Record: INC-001 - Payment API DB Connection Timeout Spike\nService: Payment API\nEnvironment: Production\nError Code: DB_CONNECTION_TIMEOUT\nSymptoms: Payment API endpoints return HTTP 504. Database connection pool reaches 100% saturation within 5 minutes of high traffic.\nRecent Changes: Database pool configuration update deployed 30 mins prior to incident.\n\nTroubleshooting Actions Attempted:\n- Restart service container: FAILED (Hung connection sockets remained open in TCP CLOSE_WAIT state)\n- Increase request timeout limit to 30s: FAILED (Worsened database pool exhaustion as connections were held open longer)\n\nFinal Resolution:\n- Successful Action: Roll back database pool configuration update v2.4.1\n- Confirmed Root Cause: Incorrect max_connections parameter in database configuration update v2.4.1 causing connection pool deadlocks\n\nOrganizational Lessons Learned:\n- Restarting service does NOT release hanging TCP connection sockets during pool deadlocks\n- Increasing request timeouts exacerbates connection pool saturation\n- When DB timeouts follow a config update, rollback configuration before attempting application workarounds\n",
+    "context": "Resolved Production Incident INC-001",
+    "metadata": {
+      "incident_id": "INC-001",
+      "service": "Payment API",
+      "error_message": "DB_CONNECTION_TIMEOUT",
+      "root_cause": "Incorrect max_connections parameter in database configuration update v2.4.1 causing connection pool deadlocks",
+      "successful_fix": "Roll back database pool configuration update v2.4.1"
+    },
+    "tags": [
+      "payment-api",
+      "db-connection-timeout"
+    ],
+    "timestamp": "2026-09-27T16:54:23.746028"
+  },
+  {
+    "id": "INC-002",
+    "content": "\nIncident Record: INC-002 - Payment API Database Timeout Spike\nService: Payment API\nEnvironment: Production\nError Code: DB_CONNECTION_TIMEOUT\nSymptoms: API requests timing out after 30 seconds. Connection pool exhaustion observed.\nRecent Changes: New connection-pool library version 3.1.0 deployed 20 minutes ago.\n\nTroubleshooting Actions Attempted:\n- Increase pool acquire timeout to 45s: FAILED (Connections remained blocked; pool size was mismatched with database server limit)\n\nFinal Resolution:\n- Successful Action: Configure connection pool max_size=50 in library 3.1.0 configuration\n- Confirmed Root Cause: Default pool size in connection-pool v3.1.0 library defaulted to 500 while Postgres server max_connections was set to 100\n\nOrganizational Lessons Learned:\n- Upgrade of connection-pool v3.1.0 resets default max pool limit to 500\n- Always align application connection pool limits with DB server limits prior to deployment\n",
+    "context": "Resolved Production Incident INC-002",
+    "metadata": {
+      "incident_id": "INC-002",
+      "service": "Payment API",
+      "error_message": "DB_CONNECTION_TIMEOUT",
+      "root_cause": "Default pool size in connection-pool v3.1.0 library defaulted to 500 while Postgres server max_connections was set to 100",
+      "successful_fix": "Configure connection pool max_size=50 in library 3.1.0 configuration"
+    },
+    "tags": [
+      "payment-api",
+      "db-connection-timeout"
+    ],
+    "timestamp": "2026-09-27T16:54:23.814631"
+  },
+  {
+    "id": "INC-003",
+    "content": "\nIncident Record: INC-003 - Payment API Database Timeout Spike\nService: Payment API\nEnvironment: Production\nError Code: DB_CONNECTION_TIMEOUT\nSymptoms: Payment API requests timing out after 30 seconds. Connection pool exhaustion observed in production logs.\nRecent Changes: New connection-pool library version 3.1.0 deployed 20 minutes ago.\n\nTroubleshooting Actions Attempted:\n- None recorded\n\nFinal Resolution:\n- Successful Action: Configure connection pool max_size=50 in library 3.1.0 configuration\n- Confirmed Root Cause: Connection pool library default size exceeded Postgres limit\n\nOrganizational Lessons Learned:\n- None recorded\n",
+    "context": "Resolved Production Incident INC-003",
+    "metadata": {
+      "incident_id": "INC-003",
+      "service": "Payment API",
+      "error_message": "DB_CONNECTION_TIMEOUT",
+      "root_cause": "Connection pool library default size exceeded Postgres limit",
+      "successful_fix": "Configure connection pool max_size=50 in library 3.1.0 configuration"
+    },
+    "tags": [
+      "payment-api",
+      "db-connection-timeout"
+    ],
+    "timestamp": "2026-09-27T17:05:41.240702"
+  },
+  {
+    "id": "INC-005",
+    "content": "\nIncident Record: INC-005 - [PRODUCTION AUDIT] Ledger timeout baseline\nService: Audit Ledger Service\nEnvironment: Production\nError Code: LEDGER_WRITE_TIMEOUT\nSymptoms: Ledger writes time out while the queue backs up and database connections saturate.\nRecent Changes: Routine traffic increase; no deployment or configuration change reported.\n\nTroubleshooting Actions Attempted:\n- Restart worker: FAILED (Queue and connection saturation persisted.)\n\nFinal Resolution:\n- Successful Action: Restore ledger writer concurrency to 24 workers\n- Confirmed Root Cause: Worker concurrency exceeded the database connection budget, exhausting available connections.\n\nOrganizational Lessons Learned:\n- Keep ledger writer concurrency within the database connection budget.\n- Restarting workers does not resolve a concurrency limit mismatch.\n",
+    "context": "Resolved Production Incident INC-005",
+    "metadata": {
+      "incident_id": "INC-005",
+      "service": "Audit Ledger Service",
+      "error_message": "LEDGER_WRITE_TIMEOUT",
+      "root_cause": "Worker concurrency exceeded the database connection budget, exhausting available connections.",
+      "successful_fix": "Restore ledger writer concurrency to 24 workers"
+    },
+    "tags": [
+      "audit-ledger-service",
+      "ledger-write-timeout"
+    ],
+    "timestamp": "2026-09-27T17:38:09.993627"
+  }
+]
